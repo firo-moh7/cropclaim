@@ -1,0 +1,9 @@
+raw/crops/
+raw/metadata.csv
+public/
+private/
+working/
+__pycache__/
+*.pyc
+.venv/
+*.zip
