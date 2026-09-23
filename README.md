@@ -1,51 +1,26 @@
 # CropClaim
 
-Synthetic multimodal dataset for **visual claim grounding**: each sample pairs a short English claim with four 96×96 panel crops. The label is which crop supports the claim (`0`–`3`), or `-1` if none do.
+Synthetic multimodal dataset for **visual claim grounding**.
 
 ## License
+**CC0 1.0 Universal** — https://creativecommons.org/publicdomain/zero/1.0/
 
-**[CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)** — public domain dedication. Free for commercial use and redistribution.
+## Shipd dataset upload (RAW)
 
-## Dataset package (canonical download)
+Upload **CropClaim_Raw.zip** from Releases (not a prepared public/private split):
 
-The redistributable dataset archive is:
+https://github.com/firo-moh7/cropclaim/releases/latest/download/CropClaim_Raw.zip
 
-**[CropClaim_Dataset.zip](https://github.com/firo-moh7/cropclaim/releases/latest/download/CropClaim_Dataset.zip)**
-
-Also mirrored in this repository as [`CropClaim_Dataset.zip`](./CropClaim_Dataset.zip).
-
-### Contents
-
+Root layout inside the zip:
 ```
-CropClaim_Dataset/
-├── public/
-│   ├── train.csv
-│   ├── test.csv
-│   ├── sample_submission.csv
-│   ├── train_crops/*.png
-│   └── test_crops/*.png
-└── private/
-    └── answers.csv
+metadata.csv
+LICENSE.txt
+crops/<sample_id>/crop_0.png … crop_3.png
 ```
 
-- Train: 4300 labeled samples  
-- Test: 900 samples  
-- Images: 96×96 RGB panels (4 crops per sample)
+`prepare.py` splits raw → `public/` + `private/`.
 
 ## Origin
+Original synthetic data from `generate_raw.py`. No third-party media. No LLM labels.
 
-All images and claims are **original synthetic artifacts** produced by `generate_raw.py` (geometric panels, meters, dual-shape cards, count grids, dominant-color fills). No third-party photographs. **No LLM-generated labels or claim text.**
-
-## Reproduce from scratch
-
-```bash
-pip install numpy pandas pillow
-python generate_raw.py   # writes raw/metadata.csv + raw/crops/
-python prepare.py        # writes public/ + private/
-```
-
-Fixed seeds: generation `91728364`, prepare `20250917`.
-
-## Citation / attribution
-
-`https://github.com/firo-moh7/cropclaim`
+Attribution: https://github.com/firo-moh7/cropclaim

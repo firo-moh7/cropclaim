@@ -3,6 +3,12 @@
 
 Shipd entrypoint:
     prepare(raw: Path, public: Path, private: Path) -> None
+
+`raw` is the uploaded dataset root. Expected layout (either at root or one folder deep):
+
+    metadata.csv
+    crops/<sample_id>/crop_{0..3}.png
+    LICENSE.txt   # optional
 """
 
 from __future__ import annotations
@@ -24,6 +30,32 @@ def _obfuscate_id(raw_id: str, salt: str = "cropclaim-v1") -> str:
     return f"{ID_PREFIX}_{h}"
 
 
+def _find_data_root(raw: Path) -> Path:
+    """Locate directory that contains metadata.csv."""
+    raw = Path(raw)
+    direct = raw / "metadata.csv"
+    if direct.is_file():
+        return raw
+
+    # Common zip layouts: single top-level folder wrapping the dataset
+    matches = sorted(raw.rglob("metadata.csv"))
+    # Prefer shallowest path
+    matches = sorted(matches, key=lambda p: len(p.relative_to(raw).parts))
+    for m in matches:
+        # ignore accidental copies under public/private if present
+        parts = {x.lower() for x in m.relative_to(raw).parts}
+        if "public" in parts or "private" in parts:
+            continue
+        return m.parent
+
+    tried = [str(direct)] + [str(p) for p in matches[:5]]
+    raise FileNotFoundError(
+        "Could not find metadata.csv under raw dataset. "
+        f"Looked for: {tried}. Upload the RAW package "
+        "(metadata.csv + crops/), not the prepared public/private split."
+    )
+
+
 def prepare(raw: Path, public: Path, private: Path) -> None:
     raw = Path(raw)
     public = Path(public)
@@ -31,8 +63,11 @@ def prepare(raw: Path, public: Path, private: Path) -> None:
     public.mkdir(parents=True, exist_ok=True)
     private.mkdir(parents=True, exist_ok=True)
 
-    meta = pd.read_csv(raw / "metadata.csv")
-    assert len(meta) > N_TEST + 500, "raw pool too small"
+    data_root = _find_data_root(raw)
+    meta_path = data_root / "metadata.csv"
+    meta = pd.read_csv(meta_path)
+    if len(meta) <= N_TEST + 500:
+        raise ValueError(f"raw pool too small: {len(meta)} rows in {meta_path}")
 
     rng = np.random.default_rng(SEED)
     idx = np.arange(len(meta))
@@ -47,13 +82,25 @@ def prepare(raw: Path, public: Path, private: Path) -> None:
 
     train_img = public / "train_crops"
     test_img = public / "test_crops"
+    if train_img.exists():
+        shutil.rmtree(train_img)
+    if test_img.exists():
+        shutil.rmtree(test_img)
     train_img.mkdir(parents=True, exist_ok=True)
     test_img.mkdir(parents=True, exist_ok=True)
 
     def _copy_crops(row, dest_dir: Path, new_id: str) -> dict:
         out = {}
         for k in range(4):
-            src = raw / str(row[f"crop_{k}"])
+            rel = str(row[f"crop_{k}"])
+            src = data_root / rel
+            if not src.is_file():
+                # allow absolute-ish accidental paths
+                alt = raw / rel
+                if alt.is_file():
+                    src = alt
+                else:
+                    raise FileNotFoundError(f"missing crop file: {src}")
             dst_name = f"{new_id}_c{k}.png"
             dst = dest_dir / dst_name
             shutil.copy2(src, dst)
@@ -95,7 +142,6 @@ def prepare(raw: Path, public: Path, private: Path) -> None:
     answers = pd.DataFrame(answer_rows).sort_values("id").reset_index(drop=True)
     sample = pd.DataFrame(sample_rows).sort_values("id").reset_index(drop=True)
 
-    # sanity: no id overlap, label range
     assert set(train_df["id"]).isdisjoint(set(test_df["id"]))
     assert answers["support_index"].between(-1, 3).all()
 
@@ -104,11 +150,8 @@ def prepare(raw: Path, public: Path, private: Path) -> None:
     sample.to_csv(public / "sample_submission.csv", index=False)
     answers.to_csv(private / "answers.csv", index=False)
 
-    # drop raw-only meta from public train? claim_type is OK as a feature hint;
-    # keep it — it's not a leak of the label.
-
     print(
-        f"prepare done: train={len(train_df)} test={len(test_df)} "
+        f"prepare done: data_root={data_root} train={len(train_df)} test={len(test_df)} "
         f"none_rate_train={(train_df.support_index == -1).mean():.3f} "
         f"none_rate_test={(answers.support_index == -1).mean():.3f}"
     )
