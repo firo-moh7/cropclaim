@@ -3,24 +3,37 @@
 Synthetic multimodal dataset for **visual claim grounding**.
 
 ## License
-**CC0 1.0 Universal** — https://creativecommons.org/publicdomain/zero/1.0/
 
-## Shipd dataset upload (RAW)
+**[CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)**
 
-Upload **CropClaim_Raw.zip** from Releases (not a prepared public/private split):
+## Shipd dataset upload (RAW — required)
 
-https://github.com/firo-moh7/cropclaim/releases/latest/download/CropClaim_Raw.zip
+Upload this archive (not a prepared public/private split):
 
-Root layout inside the zip:
+**[CropClaim_Raw.zip](https://github.com/firo-moh7/cropclaim/releases/latest/download/CropClaim_Raw.zip)**
+
+Layout:
+
 ```
-metadata.csv
-LICENSE.txt
-crops/<sample_id>/crop_0.png … crop_3.png
+CropClaim_Raw/
+├── metadata.csv
+├── LICENSE.txt
+├── dataset_description.md
+└── crops/<sample_id>/crop_{0,1,2,3}.png
 ```
 
-`prepare.py` splits raw → `public/` + `private/`.
+`prepare.py` reads `metadata.csv` + `crops/` and writes `public/` + `private/`.
 
-## Origin
-Original synthetic data from `generate_raw.py`. No third-party media. No LLM labels.
+## Reproduce
 
-Attribution: https://github.com/firo-moh7/cropclaim
+```bash
+pip install numpy pandas pillow
+python generate_raw.py
+python prepare.py
+```
+
+Seeds: generate `91728364`, prepare `20250917`.
+
+## Attribution
+
+`https://github.com/firo-moh7/cropclaim`
